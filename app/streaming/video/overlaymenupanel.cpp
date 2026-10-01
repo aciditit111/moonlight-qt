@@ -217,7 +217,8 @@ void OverlayMenuPanel::buildMenuLevels()
                          MenuAction::MenuActionMax, 1, true, false, false});
     top.items.push_back({tr("Статистика"), QString(),
                          MenuItemType::Toggle,
-                         MenuAction::ToggleStatsOverlay, 0, true, false, false});
+                         MenuAction::ToggleStatsOverlay, 0, true,
+                         m_StatsOn, false});
     top.items.push_back({tr("Битрейт"),       QString(),  MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 2, true, false, false});
     // («Файлы компьютера» убраны по запросу: файлы поедут перетаскиванием
@@ -226,9 +227,11 @@ void OverlayMenuPanel::buildMenuLevels()
                          MenuAction::ToggleFullScreen, 0, true, false, false});
     top.items.push_back({tr("Иммерсивный режим"), QStringLiteral("Alt+Tab и Win — в комп"),
                          MenuItemType::Toggle,
-                         MenuAction::ToggleImmersive, 0, true, false, false});
+                         MenuAction::ToggleImmersive, 0, true,
+                         m_ImmersiveOn, false});
     top.items.push_back({tr("Микрофон"),    QString(),  MenuItemType::Toggle,
-                         MenuAction::ToggleMicrophone, 0, true, false, false});
+                         MenuAction::ToggleMicrophone, 0, true,
+                         m_MicOn, false});
     top.items.push_back({tr("Микрофон: устройство"), QString(),
                          MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 3, true, false, true});
@@ -287,17 +290,23 @@ void OverlayMenuPanel::buildMenuLevels()
     // пустым payload - системный микрофон по умолчанию.
     MenuLevel micdev;
     micdev.title = tr("Микрофон: устройство");
-    micdev.items.push_back({tr("Как в системе"), QString(), MenuItemType::Action,
+    micdev.items.push_back({(m_MicDevSel.isEmpty()
+                                 ? QStringLiteral("● ") + tr("Как в системе")
+                                 : tr("Как в системе")),
+                            QString(), MenuItemType::Action,
                             MenuAction::SetMicDevice, 0, true, false, true,
                             QString()});
     {
         const auto inputs = QMediaDevices::audioInputs();
         for (const QAudioDevice& d : inputs) {
-            micdev.items.push_back({d.description(), QString(),
+            const QString id = QString::fromLatin1(d.id().toBase64());
+            const QString label = (id == m_MicDevSel)
+                ? QStringLiteral("● ") + d.description()
+                : d.description();
+            micdev.items.push_back({label, QString(),
                                     MenuItemType::Action,
                                     MenuAction::SetMicDevice, 0, true, false,
-                                    false,
-                                    QString::fromLatin1(d.id().toBase64())});
+                                    false, id});
         }
     }
     m_MenuLevels.push_back(micdev);
@@ -374,6 +383,7 @@ void OverlayMenuPanel::buildMenuLevels()
 
 void OverlayMenuPanel::updateMicrophoneState(bool enabled)
 {
+    m_MicOn = enabled;
     if (m_MenuLevels.empty()) return;
     for (auto& item : m_MenuLevels[0].items) {
         if (item.action == MenuAction::ToggleMicrophone) {
@@ -386,6 +396,7 @@ void OverlayMenuPanel::updateMicrophoneState(bool enabled)
 
 void OverlayMenuPanel::updateStatsState(bool enabled)
 {
+    m_StatsOn = enabled;
     if (m_MenuLevels.empty()) return;
     for (auto& item : m_MenuLevels[0].items) {
         if (item.action == MenuAction::ToggleStatsOverlay) {
@@ -398,6 +409,7 @@ void OverlayMenuPanel::updateStatsState(bool enabled)
 
 void OverlayMenuPanel::updateImmersiveState(bool enabled)
 {
+    m_ImmersiveOn = enabled;
     if (m_MenuLevels.empty()) return;
     for (auto& item : m_MenuLevels[0].items) {
         if (item.action == MenuAction::ToggleImmersive) {
@@ -410,6 +422,7 @@ void OverlayMenuPanel::updateImmersiveState(bool enabled)
 
 void OverlayMenuPanel::updateMicDeviceChecks(const QString& selectedId)
 {
+    m_MicDevSel = selectedId;
     // Уровень 3 - список микрофонов; выбранный помечаем маркером в
     // подписи (у Action-пунктов нет своего чека).
     if (m_MenuLevels.size() <= 3) return;

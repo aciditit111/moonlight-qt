@@ -35,7 +35,9 @@ static void configureFontRendering(TTF_Font* font, bool isBold, bool isItalic)
 
 OverlayManager::OverlayManager() :
     m_Renderer(nullptr),
-    m_FontData(Path::readDataFile("ModeSeven.ttf"))
+    // PrimSec: пиксельный шрифт статистики (Monocraft, лицензия OFL —
+    // свободный «майнкрафтовский» моноширинный).
+    m_FontData(Path::readDataFile("Monocraft.ttf"))
 {
     memset(m_Overlays, 0, sizeof(m_Overlays));
 

@@ -303,6 +303,15 @@ private:
 
     ActionCallback m_ActionCallback;
     MicDeviceCallback m_MicDeviceCallback;
+
+    // PrimSec: кэш состояний тумблеров. buildMenuLevels() зовётся на
+    // каждый чих (USB-обновления, хинты геймпада) и строит пункты с
+    // нуля — без кэша тумблеры визуально сбрасывались, хотя действия
+    // срабатывали («анимация неправильная», пережито).
+    bool m_MicOn = false;
+    bool m_ImmersiveOn = false;
+    bool m_StatsOn = false;
+    QString m_MicDevSel;
     CloseCallback  m_CloseCallback;
     RemoteUsbDeviceCallback m_RemoteUsbDeviceCallback;
     RemoteUsbReleaseCallback m_RemoteUsbReleaseCallback;
