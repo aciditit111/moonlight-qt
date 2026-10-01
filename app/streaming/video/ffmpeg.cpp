@@ -852,173 +852,60 @@ const char* FFmpegVideoDecoder::dynamicRangeLabel()
 
 void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS &stats, char *output, int length)
 {
+    // PrimSec: человеческая статистика - три короткие строки без
+    // кодеков и внутренних счётчиков (запрос пользователя).
     int offset = 0;
-    const char *codecString;
-    char codecStringBuffer[32];
-    int ret;
+    output[0] = 0;
 
-    // Start with an empty string
-    output[offset] = 0;
-
-    switch (m_VideoFormat)
-    {
-    case VIDEO_FORMAT_H264:
-        codecString = "H.264";
-        break;
-
-    case VIDEO_FORMAT_H264_HIGH8_444:
-        codecString = "H.264 4:4:4";
-        break;
-
-    case VIDEO_FORMAT_H265:
-        codecString = "HEVC";
-        break;
-
-    case VIDEO_FORMAT_H265_REXT8_444:
-        codecString = "HEVC 4:4:4";
-        break;
-
-    case VIDEO_FORMAT_H265_MAIN10:
-        snprintf(codecStringBuffer, sizeof(codecStringBuffer), "HEVC 10-bit %s", dynamicRangeLabel());
-        codecString = codecStringBuffer;
-        break;
-
-    case VIDEO_FORMAT_H265_REXT10_444:
-        snprintf(codecStringBuffer, sizeof(codecStringBuffer), "HEVC 10-bit %s 4:4:4", dynamicRangeLabel());
-        codecString = codecStringBuffer;
-        break;
-
-    case VIDEO_FORMAT_AV1_MAIN8:
-        codecString = "AV1";
-        break;
-
-    case VIDEO_FORMAT_AV1_HIGH8_444:
-        codecString = "AV1 4:4:4";
-        break;
-
-    case VIDEO_FORMAT_AV1_MAIN10:
-        snprintf(codecStringBuffer, sizeof(codecStringBuffer), "AV1 10-bit %s", dynamicRangeLabel());
-        codecString = codecStringBuffer;
-        break;
-
-    case VIDEO_FORMAT_AV1_HIGH10_444:
-        snprintf(codecStringBuffer, sizeof(codecStringBuffer), "AV1 10-bit %s 4:4:4", dynamicRangeLabel());
-        codecString = codecStringBuffer;
-        break;
-
-    default:
-        SDL_assert(false);
-        codecString = "UNKNOWN";
-        break;
-    }
-
-    // Display if AI-Enhancement is enabled
-    const char* aiEnhanced = "";
-    if(m_VideoEnhancement->isVideoEnhancementEnabled()){
-        aiEnhanced = "AI-Enhanced";
-    }
-
-    if (stats.receivedFps > 0) {
-        if (m_VideoDecoderCtx != nullptr) {
-            ret = snprintf(&output[offset],
-                           length - offset,
-                           " {18}%dx%d@%.0f %s %s %s %s",
+    if (stats.receivedFps > 0 && m_VideoDecoderCtx != nullptr) {
+        int ret = snprintf(&output[offset], length - offset,
+                           "Поток: %dx%d · %.0f к/с\n",
                            m_VideoDecoderCtx->width,
                            m_VideoDecoderCtx->height,
-                           stats.totalFps,
-                           "  ",
-                           codecString,
-                           aiEnhanced,
-                           " ");
-            if (ret < 0 || ret >= length - offset) {
-                SDL_assert(false);
-                return;
-            }
-
-            offset += ret;
-        }
-
-        ret = snprintf(&output[offset],
-                       length - offset,
-                       " {18}FPS  %.1f {14}Rx{18} · %.1f {14}De{18} · %.1f {14}Rd{18} \n",
-                       stats.receivedFps,
-                       stats.decodedFps,
-                       stats.renderedFps);
-        if (ret < 0 || ret >= length - offset)
-        {
-            SDL_assert(false);
-            return;
-        }
-
+                           stats.totalFps);
+        if (ret < 0 || ret >= length - offset) return;
         offset += ret;
     }
 
-    if (stats.renderedFrames != 0)
-    {
-        char rttString[32];
-        char bandwidthString[32];
-        int bandwidthKbps = BandwidthCalculator::instance()->getCurrentBandwidthKbps();
-
+    if (stats.renderedFrames != 0) {
+        char rtt[32];
         if (stats.lastRtt != 0)
-        {
-            snprintf(rttString, sizeof(rttString), "**%u** ± %ums", stats.lastRtt, stats.lastRttVariance);
-        }
+            snprintf(rtt, sizeof(rtt), "**%u мс**", stats.lastRtt);
         else
-        {
-            snprintf(rttString, sizeof(rttString), "N/A");
-        }
+            snprintf(rtt, sizeof(rtt), "—");
 
-        if (bandwidthKbps != 0)
-        {
-            if (bandwidthKbps >= 1000)
-            {
-                float mbps = bandwidthKbps / 1000.0f;
-                snprintf(bandwidthString, sizeof(bandwidthString), "**%.2f** {16}Mbps{18}", mbps);
-            }
-            else
-            {
-                snprintf(bandwidthString, sizeof(bandwidthString), "**%d** {16}Kbps{18}", bandwidthKbps);
-            }
-        }
+        char bw[32];
+        int kbps = BandwidthCalculator::instance()->getCurrentBandwidthKbps();
+        if (kbps >= 1000)
+            snprintf(bw, sizeof(bw), "%.1f Мбит", kbps / 1000.0f);
         else
-        {
-            snprintf(bandwidthString, sizeof(bandwidthString), "N/A");
-        }
+            snprintf(bw, sizeof(bw), "%d Кбит", kbps);
 
-        ret = snprintf(&output[offset],
-                       length - offset,
-                       " Network %s "
-                       " Loss %.2f%% "
-                       " Bandwidth %s "
-                    //    " Queue %.2fms "
-                       " {16}|  {18}Render **%.2f**ms "
-                       "· Decode **%.2f**ms ",
-                       rttString,
-                       (float)stats.networkDroppedFrames / stats.totalFrames * 100,
-                       bandwidthString,
-                    //    (float)stats.totalPacerTimeUs / 1000.0 / stats.renderedFrames,
-                       (double)(stats.totalRenderTimeUs / 1000.0) / stats.renderedFrames,
-                       (double)(stats.totalDecodeTimeUs / 1000.0) / stats.decodedFrames);
-        if (ret < 0 || ret >= length - offset) {
-            SDL_assert(false);
-            return;
-        }
-
+        int ret = snprintf(&output[offset], length - offset,
+                           "Сеть: задержка %s · потери %.1f%% · поток %s\n",
+                           rtt,
+                           (float)stats.networkDroppedFrames / stats.totalFrames * 100,
+                           bw);
+        if (ret < 0 || ret >= length - offset) return;
         offset += ret;
-    }
 
-    if (stats.framesWithHostProcessingLatency > 0) {
-        ret = snprintf(&output[offset],
-                       length - offset,
-                       "· Encode **%.1f**ms ",
-                       //    (float)stats.minHostProcessingLatency / 10,
-                       //    (float)stats.maxHostProcessingLatency / 10,
-                       (float)stats.totalHostProcessingLatency / 10 / stats.framesWithHostProcessingLatency);
-        if (ret < 0 || ret >= length - offset) {
-            SDL_assert(false);
-            return;
+        double clientMs =
+            (stats.totalRenderTimeUs / 1000.0) / stats.renderedFrames +
+            ((stats.decodedFrames != 0)
+                 ? (stats.totalDecodeTimeUs / 1000.0) / stats.decodedFrames
+                 : 0.0);
+        if (stats.framesWithHostProcessingLatency > 0) {
+            ret = snprintf(&output[offset], length - offset,
+                           "Обработка: ноут **%.1f мс** · комп **%.1f мс**",
+                           clientMs,
+                           (float)stats.totalHostProcessingLatency / 10 /
+                               stats.framesWithHostProcessingLatency);
         }
-
+        else {
+            ret = snprintf(&output[offset], length - offset,
+                           "Обработка: ноут **%.1f мс**", clientMs);
+        }
+        if (ret < 0 || ret >= length - offset) return;
         offset += ret;
     }
 }

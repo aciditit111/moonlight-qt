@@ -534,7 +534,10 @@ void SdlInputHandler::applyAutoMouseMode(bool cursorVisible)
 
 bool SdlInputHandler::toggleSystemKeyCapture()
 {
-    if (isSystemKeyCaptureActive()) {
+    // Решаем по РЕЖИМУ, не по «активен ли захват прямо сейчас»: пока
+    // открыто оверлей-меню, захват всегда снят, и проверка по active
+    // делала тумблер одноруким - он умел только включать.
+    if (m_CaptureSystemKeysMode != StreamingPreferences::CSK_OFF) {
         m_CaptureSystemKeysMode = StreamingPreferences::CSK_OFF;
     }
     else {
@@ -542,7 +545,7 @@ bool SdlInputHandler::toggleSystemKeyCapture()
     }
 
     updateKeyboardGrabState();
-    return isSystemKeyCaptureActive();
+    return m_CaptureSystemKeysMode != StreamingPreferences::CSK_OFF;
 }
 
 void SdlInputHandler::resetRemoteCursor()

@@ -216,7 +216,11 @@ public:
     // PrimSec: "immersive" system-key capture, toggled from the overlay
     // menu as well as the K combo (public: Session calls both).
     bool toggleSystemKeyCapture();
-    bool systemKeyCaptureActive() { return isSystemKeyCaptureActive(); }
+    // Режим (вкл/выкл), а не мгновенное состояние захвата: при открытом
+    // меню захват всегда снят, и тумблер по active всегда казался OFF.
+    bool systemKeyCaptureModeOn() {
+        return m_CaptureSystemKeysMode != StreamingPreferences::CSK_OFF;
+    }
 
     int getAttachedGamepadMask();
 

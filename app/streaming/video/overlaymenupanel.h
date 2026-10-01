@@ -128,6 +128,7 @@ public:
     void setActionCallback(ActionCallback cb) { m_ActionCallback = cb; }
     void setMicDeviceCallback(MicDeviceCallback cb) { m_MicDeviceCallback = cb; }
     void updateImmersiveState(bool enabled);
+    void updateStatsState(bool enabled);
     void updateMicDeviceChecks(const QString& selectedId);
     void setCloseCallback(CloseCallback cb)   { m_CloseCallback = cb; }
     void setRemoteUsbDeviceCallback(RemoteUsbDeviceCallback cb) {

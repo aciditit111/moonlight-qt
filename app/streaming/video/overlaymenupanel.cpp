@@ -215,17 +215,13 @@ void OverlayMenuPanel::buildMenuLevels()
     top.title = tr("PrimSec");
     top.items.push_back({tr("Команды"), QString(),  MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 1, true, false, false});
-    top.items.push_back({tr("Статистика"), QStringLiteral("FPS, задержка"),
-                         MenuItemType::Action,
+    top.items.push_back({tr("Статистика"), QString(),
+                         MenuItemType::Toggle,
                          MenuAction::ToggleStatsOverlay, 0, true, false, false});
     top.items.push_back({tr("Битрейт"),       QString(),  MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 2, true, false, false});
-    top.items.push_back({tr("Файлы компьютера"), m_FileMappingDetail,
-                         MenuItemType::Action,
-                         MenuAction::ShowHostFiles, 0, true,
-                         m_FileMappingState == FileMappingState::Available ||
-                         m_FileMappingState == FileMappingState::Open,
-                         true});
+    // («Файлы компьютера» убраны по запросу: файлы поедут перетаскиванием
+    // и Ctrl+C/V, пункт меню для этого не нужен.)
     top.items.push_back({tr("Полный экран"), QString(), MenuItemType::Action,
                          MenuAction::ToggleFullScreen, 0, true, false, false});
     top.items.push_back({tr("Иммерсивный режим"), QStringLiteral("Alt+Tab и Win — в комп"),
@@ -381,6 +377,18 @@ void OverlayMenuPanel::updateMicrophoneState(bool enabled)
     if (m_MenuLevels.empty()) return;
     for (auto& item : m_MenuLevels[0].items) {
         if (item.action == MenuAction::ToggleMicrophone) {
+            item.toggleState = enabled;
+            forceRepaint();
+            break;
+        }
+    }
+}
+
+void OverlayMenuPanel::updateStatsState(bool enabled)
+{
+    if (m_MenuLevels.empty()) return;
+    for (auto& item : m_MenuLevels[0].items) {
+        if (item.action == MenuAction::ToggleStatsOverlay) {
             item.toggleState = enabled;
             forceRepaint();
             break;
@@ -1139,7 +1147,6 @@ void OverlayMenuPanel::paintEvent(QPaintEvent*)
         }
         switch (item.action) {
         case MenuAction::ToggleFullScreen: return QStringLiteral("cat-display");
-        case MenuAction::ToggleStatsOverlay: return QStringLiteral("tb-settings");
         case MenuAction::ToggleImmersive: return QStringLiteral("cat-peripherals");
         case MenuAction::ShowHostFiles: return QStringLiteral("menu-files");
         case MenuAction::ToggleMicrophone: return QStringLiteral("menu-microphone");

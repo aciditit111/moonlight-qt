@@ -72,6 +72,14 @@ ApplicationWindow {
     // 窗口真正的顶边开始量。全屏时 contentItem.y 会变回 0，这个绑定跟着走。
     readonly property real chromeInset: contentItem.y
 
+    // PrimSec: окно всегда стартует по центру экрана — «загрузка в левом
+    // углу» была памятью позиций прошлых запусков (само сохранение
+    // позиции выключено настройкой rememberwindowposition).
+    Component.onCompleted: {
+        x = Screen.virtualX + (Screen.width - width) / 2
+        y = Screen.virtualY + (Screen.height - height) / 2
+    }
+
     onFrameSwapped: {
         if (revealAfterFirstFrame) {
             revealAfterFirstFrame = false

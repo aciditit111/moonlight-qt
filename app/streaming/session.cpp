@@ -2677,9 +2677,11 @@ void Session::showQtOverlayMenu(std::optional<QPoint> pointerGlobalPosition,
     m_MenuPanel->updateMicrophoneState(m_MicStream != nullptr);
     if (m_InputHandler) {
         m_MenuPanel->updateImmersiveState(
-            m_InputHandler->systemKeyCaptureActive());
+            m_InputHandler->systemKeyCaptureModeOn());
     }
     m_MenuPanel->updateMicDeviceChecks(m_Preferences->micDeviceId);
+    m_MenuPanel->updateStatsState(
+        m_OverlayManager.isOverlayEnabled(Overlay::OverlayDebug));
     m_MenuPanel->updateBitrateState(m_Preferences->bitrateKbps);
     m_MenuPanel->updateGamepadMouseState(m_InputHandler->isMouseEmulationActive());
     m_MenuPanel->updateMenuPositionState(
@@ -2820,8 +2822,17 @@ void Session::dispatchQtMenuAction(OverlayMenuPanel::MenuAction action)
         m_DeferCaptureRestore = true;
         break;
     case OverlayMenuPanel::MenuAction::ToggleStatsOverlay:
-        combo = SdlInputHandler::KeyComboToggleStatsOverlay;
-        break;
+        // PrimSec: самодостаточный кейс - после переключения сразу
+        // выравниваем тумблер в меню по фактическому состоянию.
+        if (m_InputHandler) {
+            m_InputHandler->performSpecialKeyCombo(
+                SdlInputHandler::KeyComboToggleStatsOverlay);
+        }
+        if (m_MenuPanel) {
+            m_MenuPanel->updateStatsState(
+                m_OverlayManager.isOverlayEnabled(Overlay::OverlayDebug));
+        }
+        return;
     case OverlayMenuPanel::MenuAction::ToggleMouseMode:
         combo = SdlInputHandler::KeyComboToggleMouseMode;
         break;
@@ -5608,6 +5619,12 @@ void Session::exec()
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Microphone stopped via overlay menu");
                 } else {
                     startMicrophone();
+                    if (!m_MicStream) {
+                        // Устройство могло не освободиться после недавнего
+                        // stop (WASAPI) - одна повторная попытка решает.
+                        SDL_Delay(300);
+                        startMicrophone();
+                    }
                     SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
                                 "Microphone %s via overlay menu",
                                 m_MicStream ? "started" : "failed to start");
