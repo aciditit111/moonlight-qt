@@ -1,5 +1,6 @@
 #include "micstream.h"
 #include "macpermissions.h"
+#include "settings/streamingpreferences.h"
 
 #include <opus.h>
 #include <QAudio>
@@ -73,6 +74,22 @@ public:
         fmt.setSampleFormat(QAudioFormat::Int16);
 
         QAudioDevice device = QMediaDevices::defaultAudioInput();
+
+        // PrimSec: пользователь мог выбрать конкретный микрофон в
+        // оверлее - ищем его по сохранённому id, иначе системный.
+        {
+            const QString wantId = StreamingPreferences::get(nullptr)->micDeviceId;
+            if (!wantId.isEmpty()) {
+                const auto inputs = QMediaDevices::audioInputs();
+                for (const QAudioDevice& d : inputs) {
+                    if (QString::fromLatin1(d.id().toBase64()) == wantId) {
+                        device = d;
+                        break;
+                    }
+                }
+            }
+        }
+
         if (device.isNull()) {
             qWarning() << "[MicStream] No default audio input device available";
             cleanupAudioResources();

@@ -72,6 +72,7 @@
 #define SER_LEGACY_CUSTOMVDDSCREENMODE "customvddscreenmode"
 #define SER_SHOWLOCALCURSOR "showLocalCursor"
 #define SER_MICROPHONE "microphone"
+#define SER_MICDEVICE "micdevice"
 #define SER_OVERLAYMENUPLACEMENT "overlaymenuplacement"
 #define SER_LEGACY_OVERLAYMENUPOS "overlaymenuposition"
 #define SER_HDRMODE "hdrmode"
@@ -269,6 +270,7 @@ void StreamingPreferences::reload()
     framePacing = settings.value(SER_FRAMEPACING, false).toBool();
     videoEnhancement = settings.value(SER_VIDEOENHANCEMENT, false).toBool();
     enableMicrophone = settings.value(SER_MICROPHONE, false).toBool();
+    micDeviceId = settings.value(SER_MICDEVICE, "").toString();
     overlayMenuPosition = loadOverlayMenuPlacement(settings);
     autoUpdateCheck = settings.value(SER_AUTOUPDATECHECK, true).toBool();
     usbForwardingEnabled = settings.value(SER_USBFORWARDING, false).toBool();
@@ -746,6 +748,7 @@ void StreamingPreferences::save()
     settings.remove(SER_LEGACY_CUSTOMSCREENMODE);
     settings.remove(SER_LEGACY_CUSTOMVDDSCREENMODE);
     settings.setValue(SER_MICROPHONE, enableMicrophone);
+    settings.setValue(SER_MICDEVICE, micDeviceId);
     settings.setValue(SER_OVERLAYMENUPLACEMENT, static_cast<int>(overlayMenuPosition));
     settings.setValue(SER_AUTOUPDATECHECK, autoUpdateCheck);
     settings.setValue(SER_USBFORWARDING, usbForwardingEnabled);

@@ -403,6 +403,9 @@ private:
     // and applied as a single toggle while the visual flipped per click -
     // the switch and reality went out of sync.
     int m_PendingMicToggles;       // 延迟麦克风切换（避免堆损坏）
+    // PrimSec: смена устройства микрофона из оверлея — рестарт захвата
+    // тем же отложенным путём, что и тоггл.
+    bool m_PendingMicRestart;
 #ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
     // Developer-only test harness. All replay/UI behavior lives behind this
     // boundary so production Session code keeps only integration hooks.

@@ -7,11 +7,11 @@ import "theme"
 
 Item {
     function onSearchingComputer() {
-        stageLabel.text = qsTr("Establishing connection to PC...")
+        stageLabel.text = qsTr("Стучимся в твой комп...")
     }
 
     function onSearchingApp() {
-        stageLabel.text = qsTr("Loading app list...")
+        stageLabel.text = qsTr("Будим рабочий стол...")
     }
 
     function onSessionCreated(appName, session) {
@@ -64,7 +64,7 @@ Item {
             font.pointSize: 24
             font.weight: Font.ExtraBold
             font.letterSpacing: Theme.trackingTight(24)
-            horizontalAlignment: Text.AlignLeft
+            horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
         }
 

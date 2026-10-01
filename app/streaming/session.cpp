@@ -1290,6 +1290,7 @@ Session::Session(NvComputer* computer,
       m_MenuPanel(nullptr),
       m_DeferCaptureRestore(false),
       m_PendingMicToggles(0),
+      m_PendingMicRestart(false),
 #ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
       m_StylusReplayTest(nullptr),
       m_WasCapturedBeforeStylusReplayPanel(false),
@@ -2674,6 +2675,11 @@ void Session::showQtOverlayMenu(std::optional<QPoint> pointerGlobalPosition,
 
     // Update dynamic state before showing
     m_MenuPanel->updateMicrophoneState(m_MicStream != nullptr);
+    if (m_InputHandler) {
+        m_MenuPanel->updateImmersiveState(
+            m_InputHandler->systemKeyCaptureActive());
+    }
+    m_MenuPanel->updateMicDeviceChecks(m_Preferences->micDeviceId);
     m_MenuPanel->updateBitrateState(m_Preferences->bitrateKbps);
     m_MenuPanel->updateGamepadMouseState(m_InputHandler->isMouseEmulationActive());
     m_MenuPanel->updateMenuPositionState(
@@ -2877,6 +2883,18 @@ void Session::dispatchQtMenuAction(OverlayMenuPanel::MenuAction action)
     case OverlayMenuPanel::MenuAction::ToggleMicrophone:
         m_PendingMicToggles++;
         return;
+
+    // --- PrimSec: «иммерсивный» захват системных клавиш ---
+    case OverlayMenuPanel::MenuAction::ToggleImmersive:
+    {
+        if (m_InputHandler) {
+            bool nowActive = m_InputHandler->toggleSystemKeyCapture();
+            if (m_MenuPanel) {
+                m_MenuPanel->updateImmersiveState(nowActive);
+            }
+        }
+        return;
+    }
 
     // --- Gamepad mouse emulation toggle ---
     // Immediately activates/deactivates mouse emulation on the connected gamepad
@@ -4627,7 +4645,7 @@ void Session::exec()
 #ifdef Q_OS_DARWIN
     std::string windowName = QString(m_Computer->name).toStdString();
 #else
-    std::string windowName = QString(m_Computer->name + " - Moonlight").toStdString();
+    std::string windowName = QString(m_Computer->name + " - PrimSec").toStdString();
 #endif
 
     m_Window = SDL_CreateWindow(windowName.c_str(),
@@ -4803,6 +4821,19 @@ void Session::exec()
 #endif
     m_MenuPanel->setActionCallback([this](OverlayMenuPanel::MenuAction action) {
         dispatchQtMenuAction(action);
+    });
+    m_MenuPanel->setMicDeviceCallback([this](const QString& deviceId) {
+        // PrimSec: запомнить выбранный микрофон и перезапустить захват
+        // отложенно (создание QAudioSource внутри processEvents ломает
+        // кучу - тот же манёвр, что у тоггла).
+        m_Preferences->micDeviceId = deviceId;
+        m_Preferences->save();
+        if (m_MicStream) {
+            m_PendingMicRestart = true;
+        }
+        if (m_MenuPanel) {
+            m_MenuPanel->updateMicDeviceChecks(deviceId);
+        }
     });
     m_MenuPanel->setRemoteUsbDeviceCallback([this](const QString& deviceId) {
         startRemoteUsb(deviceId);
@@ -5548,6 +5579,22 @@ void Session::exec()
 
         // Deferred microphone toggle — runs outside processEvents() to avoid
         // heap corruption when creating QAudioSource within nested event loops
+        if (m_PendingMicRestart) {
+            // PrimSec: сменили устройство - перезапустить живой захват
+            // на новом микрофоне.
+            m_PendingMicRestart = false;
+            if (m_MicStream) {
+                stopMicrophone();
+                startMicrophone();
+                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                            "Microphone %s on new device",
+                            m_MicStream ? "restarted" : "failed to restart");
+            }
+            if (m_MenuPanel) {
+                m_MenuPanel->updateMicrophoneState(m_MicStream != nullptr);
+            }
+        }
+
         if (m_PendingMicToggles > 0) {
             // Clicks can pile up while the overlay menu's nested loop
             // blocks us. The visual flips once per click, so apply the

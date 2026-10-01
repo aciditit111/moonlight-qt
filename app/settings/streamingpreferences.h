@@ -341,6 +341,9 @@ public:
     CaptureSysKeysMode captureSysKeysMode;
     ScreenCombinationMode screenCombinationMode;
     bool enableMicrophone;
+    // PrimSec: id выбранного микрофона (base64 от QAudioDevice::id());
+    // пусто - системный по умолчанию. Выбирается в оверлее.
+    QString micDeviceId;
     OverlayMenuPosition overlayMenuPosition;
     bool autoUpdateCheck;
     bool usbForwardingEnabled;

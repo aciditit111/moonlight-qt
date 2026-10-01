@@ -57,6 +57,10 @@ public:
         ReleaseRemoteUsbDevice,
         // Microphone
         ToggleMicrophone,
+        // PrimSec: выбор устройства микрофона (id в MenuItem::payload)
+        SetMicDevice,
+        // PrimSec: «иммерсивный» захват системных клавиш (комбо K)
+        ToggleImmersive,
         // Gamepad mouse emulation
         ToggleGamepadMouse,
         // Set bitrate to the kbps value carried in MenuItem::payload.
@@ -109,6 +113,8 @@ public:
     };
 
     using ActionCallback = std::function<void(MenuAction)>;
+    // PrimSec: клик по устройству микрофона (id из payload)
+    using MicDeviceCallback = std::function<void(const QString&)>;
     using CloseCallback  = std::function<void()>;
     using RemoteUsbDeviceCallback = std::function<void(const QString&)>;
     using RemoteUsbReleaseCallback = std::function<void()>;
@@ -120,6 +126,9 @@ public:
     ~OverlayMenuPanel() override;
 
     void setActionCallback(ActionCallback cb) { m_ActionCallback = cb; }
+    void setMicDeviceCallback(MicDeviceCallback cb) { m_MicDeviceCallback = cb; }
+    void updateImmersiveState(bool enabled);
+    void updateMicDeviceChecks(const QString& selectedId);
     void setCloseCallback(CloseCallback cb)   { m_CloseCallback = cb; }
     void setRemoteUsbDeviceCallback(RemoteUsbDeviceCallback cb) {
         m_RemoteUsbDeviceCallback = std::move(cb);
@@ -292,6 +301,7 @@ private:
     QString m_RemoteUsbDetail;
 
     ActionCallback m_ActionCallback;
+    MicDeviceCallback m_MicDeviceCallback;
     CloseCallback  m_CloseCallback;
     RemoteUsbDeviceCallback m_RemoteUsbDeviceCallback;
     RemoteUsbReleaseCallback m_RemoteUsbReleaseCallback;

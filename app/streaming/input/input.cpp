@@ -532,6 +532,19 @@ void SdlInputHandler::applyAutoMouseMode(bool cursorVisible)
     }
 }
 
+bool SdlInputHandler::toggleSystemKeyCapture()
+{
+    if (isSystemKeyCaptureActive()) {
+        m_CaptureSystemKeysMode = StreamingPreferences::CSK_OFF;
+    }
+    else {
+        m_CaptureSystemKeysMode = StreamingPreferences::CSK_ALWAYS;
+    }
+
+    updateKeyboardGrabState();
+    return isSystemKeyCaptureActive();
+}
+
 void SdlInputHandler::resetRemoteCursor()
 {
     cancelPendingRemoteCursorHide();

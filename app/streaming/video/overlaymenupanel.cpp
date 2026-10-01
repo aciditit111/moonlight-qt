@@ -1,6 +1,9 @@
 #include "overlaymenupanel.h"
 #include "uifont.h"
 
+#include <QAudioDevice>
+#include <QMediaDevices>
+
 #include <QScreen>
 #include <QGuiApplication>
 #include <QCoreApplication>
@@ -207,59 +210,40 @@ void OverlayMenuPanel::buildMenuLevels()
 {
     m_MenuLevels.clear();
 
-    // === Level 0: Top-level categories ===
+    // === Уровень 0: главное меню (PrimSec: состав зафиксирован) ===
     MenuLevel top;
-    top.title = tr("Overlay Menu");
-    top.items.push_back({tr("Quick Actions"), QString(),  MenuItemType::SubMenu,
+    top.title = tr("PrimSec");
+    top.items.push_back({tr("Команды"), QString(),  MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 1, true, false, false});
-    top.items.push_back({tr("Menu Position"), QString(), MenuItemType::SubMenu,
-                         MenuAction::MenuActionMax, 3, true, false, false});
-    top.items.push_back({tr("Bitrate"),       QString(),  MenuItemType::SubMenu,
+    top.items.push_back({tr("Статистика"), QStringLiteral("FPS, задержка"),
+                         MenuItemType::Action,
+                         MenuAction::ToggleStatsOverlay, 0, true, false, false});
+    top.items.push_back({tr("Битрейт"),       QString(),  MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 2, true, false, false});
-    const bool separatorAfterHostFiles =
-#ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
-            false;
-#else
-            !m_RemoteUsbAvailable;
-#endif
-    top.items.push_back({tr("Host Files"),    m_FileMappingDetail, MenuItemType::Action,
+    top.items.push_back({tr("Файлы компьютера"), m_FileMappingDetail,
+                         MenuItemType::Action,
                          MenuAction::ShowHostFiles, 0, true,
                          m_FileMappingState == FileMappingState::Available ||
                          m_FileMappingState == FileMappingState::Open,
-                         separatorAfterHostFiles});
-    if (m_RemoteUsbAvailable) {
-        top.items.push_back({tr("USB Devices"), m_RemoteUsbDetail,
-                             MenuItemType::SubMenu,
-                             MenuAction::MenuActionMax, 4, true, false,
-#ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
-                             false});
-#else
-                             true});
-#endif
-    }
-#ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
-    top.items.push_back({tr("Function Tests"),
-                         tr("Developer"),
-                         MenuItemType::Action,
-                         MenuAction::OpenStylusReplayPanel, 0, true, false, true});
-#endif
-    top.items.push_back({tr("Toggle Fullscreen"), QString(), MenuItemType::Action,
+                         true});
+    top.items.push_back({tr("Полный экран"), QString(), MenuItemType::Action,
                          MenuAction::ToggleFullScreen, 0, true, false, false});
-    top.items.push_back({tr("Microphone"),    QString(),  MenuItemType::Toggle,
-                         MenuAction::ToggleMicrophone, 0, true, false, !m_HasGamepads}); // separator if no gamepad item follows
-    // Only show Gamepad Mouse toggle when a gamepad is actually connected
-    if (m_HasGamepads) {
-        top.items.push_back({tr("Gamepad Mouse"), QString(),  MenuItemType::Toggle,
-                             MenuAction::ToggleGamepadMouse, 0, true, false, true}); // separator
-    }
-    top.items.push_back({ tr("Disconnect"), m_HasGamepads ? m_QuitComboGlyphs : QString(),
+    top.items.push_back({tr("Иммерсивный режим"), QStringLiteral("Alt+Tab и Win — в комп"),
+                         MenuItemType::Toggle,
+                         MenuAction::ToggleImmersive, 0, true, false, false});
+    top.items.push_back({tr("Микрофон"),    QString(),  MenuItemType::Toggle,
+                         MenuAction::ToggleMicrophone, 0, true, false, false});
+    top.items.push_back({tr("Микрофон: устройство"), QString(),
+                         MenuItemType::SubMenu,
+                         MenuAction::MenuActionMax, 3, true, false, true});
+    top.items.push_back({ tr("Отключиться"), m_HasGamepads ? m_QuitComboGlyphs : QString(),
                           MenuItemType::Action, MenuAction::Quit, 0, true, false, false });
     m_MenuLevels.push_back(top);
 
-    // === Level 1: Quick Actions (keyboard shortcuts) ===
+    // === Уровень 1: команды (горячие клавиши) ===
     MenuLevel shortcuts;
-    shortcuts.title = tr("Quick Actions");
-    shortcuts.items.push_back({tr("Quit Moonlight"),      "Ctrl+Alt+Shift+E", MenuItemType::Action,
+    shortcuts.title = tr("Команды");
+    shortcuts.items.push_back({tr("Закрыть PrimSec"),      "Ctrl+Alt+Shift+E", MenuItemType::Action,
                                MenuAction::QuitAndExit,           0, true, false, true});
     QString statsDetail = QStringLiteral("Ctrl+Alt+Shift+S");
     if (m_HasGamepads) {
@@ -271,26 +255,26 @@ void OverlayMenuPanel::buildMenuLevels()
                        QStringLiteral("+") + gamepadRightShoulderName(m_GamepadUiStyle) +
                        QStringLiteral("+") + gamepadFaceButtonGlyph(m_GamepadUiStyle, statsFace);
     }
-    shortcuts.items.push_back({ tr("Performance Stats"), statsDetail, MenuItemType::Action,
+    shortcuts.items.push_back({ tr("Статистика"), statsDetail, MenuItemType::Action,
                                 MenuAction::ToggleStatsOverlay, 0, true, false, true });
-    shortcuts.items.push_back({tr("Mouse Mode"),          "Ctrl+Alt+Shift+M", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Режим мыши"),          "Ctrl+Alt+Shift+M", MenuItemType::Action,
                                MenuAction::ToggleMouseMode,       0, true, false, false});
-    shortcuts.items.push_back({tr("Show/Hide Cursor"),    "Ctrl+Alt+Shift+C", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Курсор вкл/выкл"),    "Ctrl+Alt+Shift+C", MenuItemType::Action,
                                MenuAction::ToggleCursorHide,      0, true, false, false});
-    shortcuts.items.push_back({tr("Minimize"),            "Ctrl+Alt+Shift+D", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Свернуть"),            "Ctrl+Alt+Shift+D", MenuItemType::Action,
                                MenuAction::ToggleMinimize,        0, true, false, true});
-    shortcuts.items.push_back({tr("Ungrab Mouse"),        "Ctrl+Alt+Shift+Z", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Отпустить мышь"),        "Ctrl+Alt+Shift+Z", MenuItemType::Action,
                                MenuAction::UngrabInput,           0, true, false, false});
-    shortcuts.items.push_back({tr("Paste Clipboard"),     "Ctrl+Alt+Shift+V", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Вставить из буфера"),     "Ctrl+Alt+Shift+V", MenuItemType::Action,
                                MenuAction::PasteText,             0, true, false, false});
-    shortcuts.items.push_back({tr("Pointer Region Lock"), "Ctrl+Alt+Shift+L", MenuItemType::Action,
+    shortcuts.items.push_back({tr("Удержание указателя"), "Ctrl+Alt+Shift+L", MenuItemType::Action,
                                MenuAction::TogglePointerRegionLock, 0, true, false, false});
     m_MenuLevels.push_back(shortcuts);
 
-    // === Level 2: Bitrate (piecewise-linear scrubber row + presets) ===
+    // === Уровень 2: битрейт (слайдер + пресеты) ===
     MenuLevel bitrate;
-    bitrate.title = tr("Bitrate");
-    bitrate.items.push_back({QString(), QString(), MenuItemType::Slider,
+    bitrate.title = tr("Битрейт");
+    bitrate.items.push_back({tr("Экономнее — Красивее"), QString(), MenuItemType::Slider,
                              MenuAction::MenuActionMax, 0, true, false, true});
     static const int kBitratePresets[] = {
         1000, 2000, 5000, 10000, 20000, 30000, 50000, 100000
@@ -302,20 +286,25 @@ void OverlayMenuPanel::buildMenuLevels()
     }
     m_MenuLevels.push_back(bitrate);
 
-    // === Level 3: Overlay menu placement ===
-    MenuLevel placement;
-    placement.title = tr("Menu Position");
-    placement.items.push_back({tr("Top edge"), QString(), MenuItemType::Action,
-                               MenuAction::SetMenuPlacementTop, 0, true, false, false});
-    placement.items.push_back({tr("Right edge"), QString(), MenuItemType::Action,
-                               MenuAction::SetMenuPlacementRight, 0, true, false, false});
-    placement.items.push_back({tr("Left edge"), QString(), MenuItemType::Action,
-                               MenuAction::SetMenuPlacementLeft, 0, true, false, false});
-    placement.items.push_back({tr("Floating button"), QString(), MenuItemType::Action,
-                               MenuAction::SetMenuPlacementButton, 0, true, false, false});
-    placement.items.push_back({tr("Disabled"), QString(), MenuItemType::Action,
-                               MenuAction::SetMenuPlacementDisabled, 0, true, false, false});
-    m_MenuLevels.push_back(placement);
+    // === Уровень 3: устройство микрофона (PrimSec) ===
+    // Выбор запоминается в настройках и отмечается маркером; пункт с
+    // пустым payload - системный микрофон по умолчанию.
+    MenuLevel micdev;
+    micdev.title = tr("Микрофон: устройство");
+    micdev.items.push_back({tr("Как в системе"), QString(), MenuItemType::Action,
+                            MenuAction::SetMicDevice, 0, true, false, true,
+                            QString()});
+    {
+        const auto inputs = QMediaDevices::audioInputs();
+        for (const QAudioDevice& d : inputs) {
+            micdev.items.push_back({d.description(), QString(),
+                                    MenuItemType::Action,
+                                    MenuAction::SetMicDevice, 0, true, false,
+                                    false,
+                                    QString::fromLatin1(d.id().toBase64())});
+        }
+    }
+    m_MenuLevels.push_back(micdev);
 
     // === Level 4: Remote USB devices ===
     if (m_RemoteUsbAvailable) {
@@ -397,6 +386,36 @@ void OverlayMenuPanel::updateMicrophoneState(bool enabled)
             break;
         }
     }
+}
+
+void OverlayMenuPanel::updateImmersiveState(bool enabled)
+{
+    if (m_MenuLevels.empty()) return;
+    for (auto& item : m_MenuLevels[0].items) {
+        if (item.action == MenuAction::ToggleImmersive) {
+            item.toggleState = enabled;
+            forceRepaint();
+            break;
+        }
+    }
+}
+
+void OverlayMenuPanel::updateMicDeviceChecks(const QString& selectedId)
+{
+    // Уровень 3 - список микрофонов; выбранный помечаем маркером в
+    // подписи (у Action-пунктов нет своего чека).
+    if (m_MenuLevels.size() <= 3) return;
+    for (auto& item : m_MenuLevels[3].items) {
+        if (item.action != MenuAction::SetMicDevice) continue;
+        QString base = item.label;
+        if (base.startsWith(QStringLiteral("● "))) {
+            base = base.mid(2);
+        }
+        const bool sel = (item.payload == selectedId) ||
+                         (item.payload.isEmpty() && selectedId.isEmpty());
+        item.label = sel ? QStringLiteral("● ") + base : base;
+    }
+    forceRepaint();
 }
 
 void OverlayMenuPanel::updateGamepadMouseState(bool enabled)
@@ -663,6 +682,15 @@ void OverlayMenuPanel::dispatchActionItem(const MenuItem& item)
     // USB callbacks can synchronously rebuild the device list. Own the payload
     // before calling out so a refresh cannot invalidate the selected identity.
     const QString payload = item.payload;
+    if (item.action == MenuAction::SetMicDevice) {
+        // PrimSec: выбор устройства не закрывает меню - маркер
+        // обновит session после сохранения и рестарта захвата.
+        beginInteraction();
+        if (m_MicDeviceCallback) {
+            m_MicDeviceCallback(payload);
+        }
+        return;
+    }
     if (item.action == MenuAction::SelectRemoteUsbDevice) {
         beginInteraction();
         if (m_RemoteUsbDeviceCallback) {
@@ -1103,14 +1131,16 @@ void OverlayMenuPanel::paintEvent(QPaintEvent*)
     auto iconForItem = [](const MenuItem& item) -> QString {
         if (item.type == MenuItemType::SubMenu) {
             switch (item.targetLevel) {
-            case 1: return QStringLiteral("tb-settings");
+            case 1: return QStringLiteral("menu-position");
             case 2: return QStringLiteral("menu-bitrate");
-            case 3: return QStringLiteral("menu-position");
+            case 3: return QStringLiteral("menu-microphone");
             case 4: return QStringLiteral("cat-peripherals");
             }
         }
         switch (item.action) {
         case MenuAction::ToggleFullScreen: return QStringLiteral("cat-display");
+        case MenuAction::ToggleStatsOverlay: return QStringLiteral("tb-settings");
+        case MenuAction::ToggleImmersive: return QStringLiteral("cat-peripherals");
         case MenuAction::ShowHostFiles: return QStringLiteral("menu-files");
         case MenuAction::ToggleMicrophone: return QStringLiteral("menu-microphone");
         case MenuAction::ToggleGamepadMouse: return QStringLiteral("cat-gamepad");
@@ -1233,7 +1263,13 @@ void OverlayMenuPanel::paintEvent(QPaintEvent*)
         // --- Action item ---
         else if (item.type == MenuItemType::Action) {
             p.setFont(m_LabelFont);
-            p.setPen(item.enabled ? MenuText : MenuFaint);
+            // PrimSec: «Отключиться» - красным, это деструктивное действие.
+            if (item.action == MenuAction::Quit) {
+                p.setPen(item.enabled ? QColor(229, 72, 77) : MenuFaint);
+            }
+            else {
+                p.setPen(item.enabled ? MenuText : MenuFaint);
+            }
 
             bool hasLongDetail = !item.detail.isEmpty() && item.detail.length() > 3;
             bool hasShortDetail = !item.detail.isEmpty() && item.detail.length() <= 3;

@@ -355,6 +355,11 @@ private:
     // Visible -> absolute + local cursor, hidden -> relative capture.
     void applyAutoMouseMode(bool cursorVisible);
 
+    // PrimSec: "immersive" system-key capture, toggled from the overlay
+    // menu as well as the K combo. Returns the new state.
+    bool toggleSystemKeyCapture();
+    bool systemKeyCaptureActive() { return isSystemKeyCaptureActive(); }
+
     void cancelPendingRemoteCursorHide();
 
     struct NativeTouchpadContact {
