@@ -1289,7 +1289,7 @@ Session::Session(NvComputer* computer,
       m_DropAudioEndTime(0),
       m_MenuPanel(nullptr),
       m_DeferCaptureRestore(false),
-      m_PendingMicToggle(false),
+      m_PendingMicToggles(0),
 #ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
       m_StylusReplayTest(nullptr),
       m_WasCapturedBeforeStylusReplayPanel(false),
@@ -2875,7 +2875,7 @@ void Session::dispatchQtMenuAction(OverlayMenuPanel::MenuAction action)
     // --- Microphone toggle ---
     // Deferred: toggle mic outside processEvents() to avoid QAudioSource heap corruption
     case OverlayMenuPanel::MenuAction::ToggleMicrophone:
-        m_PendingMicToggle = true;
+        m_PendingMicToggles++;
         return;
 
     // --- Gamepad mouse emulation toggle ---
@@ -3878,7 +3878,7 @@ bool Session::tryReconnect()
         // startConnectionAsync() may have requested a mic toggle for the
         // initial-launch path. The mic capture is client-side and was never
         // torn down, so don't toggle it off on reconnect.
-        m_PendingMicToggle = false;
+        m_PendingMicToggles = 0;
 
         showStreamingToast(tr("Reconnected"), 1500);
         return true;
@@ -4216,7 +4216,7 @@ bool Session::startConnectionAsync()
     if (m_Preferences->enableMicrophone) {
         // Use the deferred mic toggle mechanism instead of QueuedConnection to avoid
         // heap corruption when creating QAudioSource within nested event loops (processEvents).
-        m_PendingMicToggle = true;
+        m_PendingMicToggles++;
     }
     return true;
 }
@@ -5548,16 +5548,23 @@ void Session::exec()
 
         // Deferred microphone toggle — runs outside processEvents() to avoid
         // heap corruption when creating QAudioSource within nested event loops
-        if (m_PendingMicToggle) {
-            m_PendingMicToggle = false;
-            if (m_MicStream) {
-                stopMicrophone();
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Microphone stopped via overlay menu");
-            } else {
-                startMicrophone();
-                SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
-                            "Microphone %s via overlay menu",
-                            m_MicStream ? "started" : "failed to start");
+        if (m_PendingMicToggles > 0) {
+            // Clicks can pile up while the overlay menu's nested loop
+            // blocks us. The visual flips once per click, so apply the
+            // NET effect (odd count = one real toggle) and then snap the
+            // visual to reality either way.
+            const bool flip = (m_PendingMicToggles % 2) != 0;
+            m_PendingMicToggles = 0;
+            if (flip) {
+                if (m_MicStream) {
+                    stopMicrophone();
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "Microphone stopped via overlay menu");
+                } else {
+                    startMicrophone();
+                    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION,
+                                "Microphone %s via overlay menu",
+                                m_MicStream ? "started" : "failed to start");
+                }
             }
             // Update the toggle state in menu
             if (m_MenuPanel) {

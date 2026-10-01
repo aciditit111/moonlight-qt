@@ -398,7 +398,11 @@ private:
     Overlay::OverlayManager m_OverlayManager;
     bool m_WasCapturedBeforeMenu;  // 菜单打开前鼠标是否处于捕获状态
     bool m_DeferCaptureRestore;    // 延迟恢复鼠标捕获（全屏切换等）
-    bool m_PendingMicToggle;       // 延迟麦克风切换（避免堆损坏）
+    // PrimSec: a COUNT, not a flag. While the overlay menu is open its
+    // nested loop defers processing, so rapid clicks piled into one bool
+    // and applied as a single toggle while the visual flipped per click -
+    // the switch and reality went out of sync.
+    int m_PendingMicToggles;       // 延迟麦克风切换（避免堆损坏）
 #ifdef MOONLIGHT_ENABLE_FUNCTION_TESTS
     // Developer-only test harness. All replay/UI behavior lives behind this
     // boundary so production Session code keeps only integration hooks.
