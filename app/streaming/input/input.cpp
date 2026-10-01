@@ -98,7 +98,9 @@ SdlInputHandler::SdlInputHandler(StreamingPreferences& prefs, int streamWidth, i
       m_LastCursorClass(NativeCursorShape::Unknown), m_HasLastCursorShape(false),
       m_RemoteCursorScale(1.0), m_RemoteCursorHideTimer(0), m_LongPressTimer(0),
       m_StreamWidth(streamWidth), m_StreamHeight(streamHeight),
-      m_AbsoluteMouseMode(prefs.absoluteMouseMode), m_AbsoluteTouchMode(prefs.absoluteTouchMode),
+      m_AbsoluteMouseMode(prefs.absoluteMouseMode),
+      m_IgnoreAspectRatio(prefs.ignoreAspectRatio),
+      m_AbsoluteTouchMode(prefs.absoluteTouchMode),
       m_DisabledTouchFeedback(false),
 #ifdef HAVE_WINDOWS_PEN_INPUT
       m_WindowsPenWindow(nullptr), m_WindowsPenSubclassContext(nullptr), m_WindowsPenPointerId(0),

@@ -474,6 +474,9 @@ private:
     int m_StreamWidth;
     int m_StreamHeight;
     bool m_AbsoluteMouseMode;
+    // PrimSec: mirrors prefs.ignoreAspectRatio. When the renderer
+    // stretches to fill, the mouse must map to the whole window too.
+    bool m_IgnoreAspectRatio;
     bool m_AbsoluteTouchMode;
     bool m_DisabledTouchFeedback;
 

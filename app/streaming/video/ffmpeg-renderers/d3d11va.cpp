@@ -1018,7 +1018,10 @@ void D3D11VARenderer::renderOverlay(Overlay::OverlayType type)
 void D3D11VARenderer::bindVideoVertexBuffer(bool frameChanged, AVFrame* frame)
 {
     if (frameChanged || !m_VideoVertexBuffer) {
-        // Scale video to the window size while preserving aspect ratio
+        // Scale video to the window size while preserving aspect ratio,
+        // unless the user asked to stretch to fill. PrimSec: upstream
+        // honored ignoreAspectRatio only in the plvk renderer; this is
+        // the single point both the shader and VP paths flow through.
         SDL_Rect src, dst;
         src.x = src.y = 0;
         src.w = frame->width;
@@ -1026,7 +1029,9 @@ void D3D11VARenderer::bindVideoVertexBuffer(bool frameChanged, AVFrame* frame)
         dst.x = dst.y = 0;
         dst.w = m_DisplayWidth;
         dst.h = m_DisplayHeight;
-        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        if (!m_DecoderParams.ignoreAspectRatio) {
+            StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        }
 
         // Convert screen space to normalized device coordinates
         SDL_FRect renderRect;

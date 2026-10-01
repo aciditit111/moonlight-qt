@@ -147,8 +147,13 @@ void SdlInputHandler::handleMouseMotionEvent(SDL_MouseMotionEvent* event)
         dst.w = windowWidth;
         dst.h = windowHeight;
 
-        // Use the stream and window sizes to determine the video region
-        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        // Use the stream and window sizes to determine the video region.
+        // PrimSec: when the renderer stretches to fill (ignore aspect
+        // ratio), the video region IS the whole window - keep dst as-is
+        // so absolute coordinates match the stretched picture.
+        if (!m_IgnoreAspectRatio) {
+            StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        }
 
         mouseInVideoRegion = isMouseInVideoRegion(x, y, windowWidth, windowHeight);
 
@@ -310,8 +315,11 @@ bool SdlInputHandler::isMouseInVideoRegion(int mouseX, int mouseY, int windowWid
     dst.w = windowWidth;
     dst.h = windowHeight;
 
-    // Use the stream and window sizes to determine the video region
-    StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    // Use the stream and window sizes to determine the video region.
+    // PrimSec: stretched rendering fills the whole window.
+    if (!m_IgnoreAspectRatio) {
+        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    }
 
     return (mouseX >= dst.x && mouseX <= dst.x + dst.w) &&
            (mouseY >= dst.y && mouseY <= dst.y + dst.h);
