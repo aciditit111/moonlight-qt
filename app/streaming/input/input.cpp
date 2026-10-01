@@ -465,6 +465,7 @@ void SdlInputHandler::updateRemoteCursorVisibility(bool visible)
         // 显示立即生效，同时把还没到期的隐藏作废
         cancelPendingRemoteCursorHide();
         m_RemoteCursorVisible = true;
+        applyAutoMouseMode(true);
         return;
     }
 
@@ -479,6 +480,7 @@ void SdlInputHandler::updateRemoteCursorVisibility(bool visible)
     if (m_RemoteCursorHideTimer == 0) {
         // 定时器起不来就立即生效。宁可闪，也不能把主机要求藏起来的光标留在屏上。
         m_RemoteCursorVisible = false;
+        applyAutoMouseMode(false);
     }
 }
 
@@ -494,6 +496,37 @@ void SdlInputHandler::flushPendingRemoteCursorHide()
 
     if (isCaptureActive()) {
         applyCapturedCursorState();
+    }
+    applyAutoMouseMode(false);
+}
+
+void SdlInputHandler::applyAutoMouseMode(bool cursorVisible)
+{
+    // PrimSec: the host cursor state drives the mouse mode, like Parsec.
+    // Visible cursor -> absolute mouse + local cursor. Hidden -> relative
+    // capture so games get raw motion. Only active while the local cursor
+    // feature is on; otherwise keep the stock manual behavior.
+    if (m_MouseCursorCapturedVisibilityState != SDL_ENABLE) {
+        return;
+    }
+    if (m_AbsoluteMouseMode == cursorVisible) {
+        return;
+    }
+
+    const bool wasCaptureActive = isCaptureActive();
+    if (wasCaptureActive) {
+        setCaptureActive(false);
+    }
+    m_AbsoluteMouseMode = cursorVisible;
+    if (cursorVisible) {
+        // Re-arm LI_CURSOR_MODE_LOCAL and reset the visibility bookkeeping.
+        synchronizeLocalCursorMode();
+    }
+    // Entering raw mode keeps LiSetCursorMode() in LOCAL on purpose: dropping
+    // to VIDEO would make the host close its cursor channel and we would
+    // never hear that the cursor became visible again.
+    if (wasCaptureActive) {
+        setCaptureActive(true);
     }
 }
 

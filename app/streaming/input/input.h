@@ -351,6 +351,10 @@ private:
     // 应用主机推来的显隐状态：显示立即生效，隐藏要等去抖窗口坐实。
     void updateRemoteCursorVisibility(bool visible);
 
+    // PrimSec: drive the mouse mode from the host cursor state (Parsec-style).
+    // Visible -> absolute + local cursor, hidden -> relative capture.
+    void applyAutoMouseMode(bool cursorVisible);
+
     void cancelPendingRemoteCursorHide();
 
     struct NativeTouchpadContact {
