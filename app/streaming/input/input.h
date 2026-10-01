@@ -213,6 +213,11 @@ public:
     // 去抖窗口到期，把主机要求的隐藏落实下去
     void flushPendingRemoteCursorHide();
 
+    // PrimSec: "immersive" system-key capture, toggled from the overlay
+    // menu as well as the K combo (public: Session calls both).
+    bool toggleSystemKeyCapture();
+    bool systemKeyCaptureActive() { return isSystemKeyCaptureActive(); }
+
     int getAttachedGamepadMask();
 
     void raiseAllKeys(bool clearKeys = true);
@@ -354,11 +359,6 @@ private:
     // PrimSec: drive the mouse mode from the host cursor state (Parsec-style).
     // Visible -> absolute + local cursor, hidden -> relative capture.
     void applyAutoMouseMode(bool cursorVisible);
-
-    // PrimSec: "immersive" system-key capture, toggled from the overlay
-    // menu as well as the K combo. Returns the new state.
-    bool toggleSystemKeyCapture();
-    bool systemKeyCaptureActive() { return isSystemKeyCaptureActive(); }
 
     void cancelPendingRemoteCursorHide();
 
