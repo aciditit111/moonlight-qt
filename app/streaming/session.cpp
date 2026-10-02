@@ -25,6 +25,10 @@
 #include <QCoreApplication>
 #include <QHostInfo>
 #include <QThread>
+#include <QTcpSocket>
+#include <QHostAddress>
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #ifdef HAVE_FFMPEG
 #include "video/ffmpeg.h"
@@ -44,6 +48,8 @@
 #include <windows.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
+#include <shellapi.h>
+#include <SDL_syswm.h>
 #else
 #define ICON_SIZE 64
 #endif
@@ -61,6 +67,27 @@
         defined(HAVE_LINUX_DISPLAY_EVENT_MONITOR)
 #define SDL_CODE_PROCESS_QT_OVERLAY_EVENTS 109
 #endif
+
+// PrimSec: файл, брошенный на окно стрима, должен уехать на хост. Сам
+// перенос делает обёртка (PrimSec) — движок только сообщает ей локальный
+// путь по мосту на 127.0.0.1:47812. Слушателя нет — выход мгновенный
+// (локальный отказ), стрим ничего не замечает.
+static void reportDroppedFileToPrimSec(const char* path)
+{
+    QTcpSocket sock;
+    sock.connectToHost(QHostAddress::LocalHost, 47812);
+    if (!sock.waitForConnected(250)) {
+        return;
+    }
+    QJsonObject obj;
+    obj.insert(QStringLiteral("op"), QStringLiteral("drop"));
+    obj.insert(QStringLiteral("path"), QString::fromUtf8(path));
+    QByteArray line = QJsonDocument(obj).toJson(QJsonDocument::Compact);
+    line.append('\n');
+    sock.write(line);
+    sock.waitForBytesWritten(500);
+    sock.disconnectFromHost();
+}
 
 #include <openssl/rand.h>
 
@@ -4703,6 +4730,25 @@ void Session::exec()
         }
     }
 
+#ifdef Q_OS_WIN32
+    {
+        // PrimSec запускает клиент с правами администратора, а проводник
+        // живёт без них: UIPI молча режет перетаскивание файлов в наше
+        // окно — у курсора «запрещено», событие не приходит. Открываем
+        // сообщения D&D явно (без WM_COPYGLOBALDATA проводник не отдаёт
+        // сами пути) и включаем приём файлов на окне.
+        SDL_SysWMinfo wmInfo;
+        SDL_VERSION(&wmInfo.version);
+        if (SDL_GetWindowWMInfo(m_Window, &wmInfo)) {
+            HWND dropHwnd = wmInfo.info.win.window;
+            ChangeWindowMessageFilterEx(dropHwnd, WM_DROPFILES, MSGFLT_ALLOW, nullptr);
+            ChangeWindowMessageFilterEx(dropHwnd, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
+            ChangeWindowMessageFilterEx(dropHwnd, 0x0049 /* WM_COPYGLOBALDATA */, MSGFLT_ALLOW, nullptr);
+            DragAcceptFiles(dropHwnd, TRUE);
+        }
+    }
+#endif
+
     m_InputHandler->setWindow(m_Window);
 
     QSvgRenderer svgIconRenderer(QString(":/res/moonlight.svg"));
@@ -5132,6 +5178,16 @@ void Session::exec()
                 m_StylusReplayTest->shouldFilterLocalMouseInput();
 #endif
         switch (event.type) {
+        case SDL_DROPFILE:
+            // Файл утащили на окно стрима — путь уходит обёртке (PrimSec),
+            // перенос на хост делает она. Строка пути — в нашем владении,
+            // SDL требует освободить её самим.
+            if (event.drop.file != nullptr) {
+                reportDroppedFileToPrimSec(event.drop.file);
+                SDL_free(event.drop.file);
+            }
+            break;
+
         case SDL_QUIT:
             // If the connection was interrupted by a transient network problem
             // (rather than a user-initiated quit), try to silently reconnect
