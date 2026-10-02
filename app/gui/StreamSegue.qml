@@ -47,32 +47,8 @@ Item {
         }
     }
 
-    // 退出组合键提示随设置走：玩家改了组合键，提示不能还教默认那套。
-    // 按键名按当前手柄风格显示（PS 显示 Options/Share/✕，Switch 显示 +/−），
-    // swapFaceButtons 时补偿到实际要按的物理键
-    function quitComboHintText()
-    {
-        var nav = SdlGamepadKeyNavigation
-        var swap = StreamingPreferences.swapFaceButtons
-        var lb = nav.leftShoulderName()
-        var rb = nav.rightShoulderName()
-        var face = function(i) { return nav.faceButtonGlyph(swap ? (i ^ 1) : i) }
-        var shoulders = lb + "+" + rb
-        switch (StreamingPreferences.gamepadQuitCombo) {
-        case StreamingPreferences.GQC_SELECT_L1_R1_Y:
-            return nav.selectButtonName() + "+" + shoulders + "+" + face(3)
-        case StreamingPreferences.GQC_START_L1_R1_A:
-            return nav.startButtonName() + "+" + shoulders + "+" + face(0)
-        case StreamingPreferences.GQC_START_L1_R1_B:
-            return nav.startButtonName() + "+" + shoulders + "+" + face(1)
-        case StreamingPreferences.GQC_L1_R1_X_Y:
-            return shoulders + "+" + face(2) + "+" + face(3)
-        case StreamingPreferences.GQC_L1_R1_A_B:
-            return shoulders + "+" + face(0) + "+" + face(1)
-        default:
-            return nav.startButtonName() + "+" + nav.selectButtonName() + "+" + shoulders
-        }
-    }
+    // PrimSec: подсказка про комбинацию выхода убрана с экрана загрузки
+    // по просьбе пользователя - экран чистый, только фразы и полоса.
 
     function stageStarting(stage)
     {
@@ -97,7 +73,6 @@ Item {
         // see them briefly when we pop off the StackView
         stageSpinner.visible = false
         stageLabel.visible = false
-        hintText.visible = false
 
         // 窗口本身不在这里藏，由 Session::exec() 在串流窗口进入全屏之后隐藏。
         // 提前藏的话，macOS 切进新 Space 的整个动画期间旧 Space 露出来的是桌面，
@@ -142,9 +117,19 @@ Item {
             stackView.pop()
         }
 
-        if (quitAfter && !streamSegueErrorDialog.text) {
-            // If this was a CLI launch without errors, exit now
-            Qt.quit()
+        if (quitAfter) {
+            if (streamSegueErrorDialog.text) {
+                // PrimSec: обрыв или ошибка в CLI-режиме - без своего
+                // диалога. Ненулевой код выхода говорит обёртке «это не
+                // ручной выход»: она покажет статус и переподключится.
+                // Ручной выход (Disconnect, крестик, комбинация) приходит
+                // сюда с пустым текстом ошибки и уходит чистым нулём.
+                console.error(streamSegueErrorDialog.text)
+                Qt.exit(13)
+            }
+            else {
+                Qt.quit()
+            }
         }
         else {
             // Show the Qt window again after streaming
@@ -272,14 +257,6 @@ Item {
         asynchronous: true
 
         onLoaded: {
-            // Set the hint text. We do this here rather than
-            // in the hintText control itself to synchronize
-            // with Session.exec() which requires no concurrent
-            // gamepad usage.
-            hintText.text = qsTr("Подсказка: %1 — отключиться").arg(SdlGamepadKeyNavigation.getConnectedGamepads() > 0 &&
-                                                  SdlGamepadKeyNavigation.gamepadQuitComboEnabled() ?
-                                                  quitComboHintText() : qsTr("Ctrl+Alt+Shift+Q"))
-
             // Stop GUI gamepad usage now
             SdlGamepadKeyNavigation.disable()
 
@@ -295,30 +272,14 @@ Item {
             // which causes re-entrant event loop livelocks with libdecor-gtk.
             stageSpinner.visible = true
 
-            // Don't wait unless we have toasts to display
+            // PrimSec: всплывающие предупреждения на экране загрузки
+            // («вы подключены к сеансу удалённого доступа» и прочие
+            // тосты) убраны - они уходят в журнал, экран остаётся чистым.
             startSessionTimer.interval = 0
-
-            // Display the toasts together in a vertical centered arrangement
-            var yOffset = 0
             for (var i = 0; i < session.launchWarnings.length; i++) {
-                var text = session.launchWarnings[i]
-                console.warn(text)
-
-                // Show the tooltip for 3 seconds
-                var toast = Qt.createQmlObject('import QtQuick.Controls 2.2; ToolTip {}', parent, '')
-                toast.timeout = 3000
-                toast.text = text
-                toast.y += yOffset
-                toast.visible = true
-
-                // Offset the next toast below the previous one
-                yOffset = toast.y + toast.padding + toast.height
-
-                // Allow an extra 500 ms for the tooltip's fade-out animation to finish
-                startSessionTimer.interval = toast.timeout + 500;
+                console.warn(session.launchWarnings[i])
             }
 
-            // Start the timer to wait for toasts (or start the session immediately)
             startSessionTimer.start()
         }
 
@@ -369,18 +330,5 @@ Item {
             }
         }
 
-        Text {
-            id: hintText
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: 50
-            anchors.horizontalCenter: parent.horizontalCenter
-            color: Theme.textDim
-            font.family: Theme.fontMono
-            font.pointSize: Theme.fontBody
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-
-            wrapMode: Text.Wrap
-        }
     }
 }

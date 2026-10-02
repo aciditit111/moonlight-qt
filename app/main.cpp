@@ -1131,7 +1131,7 @@ int main(int argc, char *argv[])
     }
 
     QGuiApplication app(argc, argv);
-    QGuiApplication::setApplicationDisplayName(QStringLiteral("Moonlight V+ for PC"));
+    QGuiApplication::setApplicationDisplayName(QStringLiteral("PrimSec"));
 
 #ifdef Q_OS_DARWIN
     // macOS defaults "Keyboard navigation" to text fields and lists only, which
@@ -1568,6 +1568,8 @@ int main(int argc, char *argv[])
     if (hasGUI) {
         engine.rootContext()->setContextProperty("initialView", initialView);
         engine.rootContext()->setContextProperty("runConfigChecks", commandLineParserResult == GlobalCommandLineParser::NormalStartRequested);
+        // PrimSec: отображаемое имя пира (ник) для загрузочного экрана.
+        engine.rootContext()->setContextProperty("primsecPeerName", qEnvironmentVariable("PRIMSEC_DISPLAY_NAME"));
 
         // Load the main.qml file
         engine.load(QUrl(QStringLiteral("qrc:/gui/main.qml")));

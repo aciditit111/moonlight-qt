@@ -6,12 +6,22 @@ import ComputerManager 1.0
 import "theme"
 
 Item {
+    // PrimSec прокидывает ник того, к кому подключаемся, — на экране
+    // человек, а не сетевое имя машины.
+    function peerLine(fallback) {
+        if (typeof primsecPeerName !== "undefined" && primsecPeerName &&
+                primsecPeerName.length > 0) {
+            return qsTr("Подключаюсь к «%1»...").arg(primsecPeerName)
+        }
+        return fallback
+    }
+
     function onSearchingComputer() {
-        stageLabel.text = qsTr("Стучимся в твой комп...")
+        stageLabel.text = peerLine(qsTr("Стучимся в твой комп..."))
     }
 
     function onSearchingApp() {
-        stageLabel.text = qsTr("Будим рабочий стол...")
+        stageLabel.text = peerLine(qsTr("Будим рабочий стол..."))
     }
 
     function onSessionCreated(appName, session) {
