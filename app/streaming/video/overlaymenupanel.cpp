@@ -3,6 +3,7 @@
 
 #include <QAudioDevice>
 #include <QMediaDevices>
+#include <QSettings>
 
 #include <QScreen>
 #include <QGuiApplication>
@@ -15,6 +16,11 @@
 namespace {
 constexpr qint64 PointerGracePeriodMs = 300;
 constexpr int PointerCheckIntervalMs = 150;
+// PrimSec: меню не захлопывается от случайного проезда курсора мимо —
+// после ухода указателя оно живёт ещё 2.5 с (вернулся — отсчёт с нуля).
+// Клик вне меню закрывает мгновенно — это отдельный путь
+// (dismissOnOutsideClick), грейс его не касается.
+constexpr qint64 PointerAwayCloseMs = 2500;
 // Raster counterpart of gui/theme/Theme.qml (same palette and hard edges).
 const QColor MenuSurface("#171A20");
 const QColor MenuHover("#1F232B");
@@ -103,6 +109,10 @@ OverlayMenuPanel::OverlayMenuPanel(QWindow* parent)
     setFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint
              | Qt::WindowDoesNotAcceptFocus);
 
+    // PrimSec: выбранная герцовка потока (0 = «как у монитора»). Живёт в
+    // том же ini, который читает обёртка при запуске потока.
+    m_FpsSel = QSettings().value(QStringLiteral("primsecfps"), 0).toInt();
+
     QSurfaceFormat fmt;
     fmt.setAlphaBufferSize(8);
     setFormat(fmt);
@@ -165,9 +175,21 @@ OverlayMenuPanel::OverlayMenuPanel(QWindow* parent)
                 m_ShadowMargin, m_ShadowMargin,
                 -m_ShadowMargin, -m_ShadowMargin);
         if (!contentGeometry.contains(QCursor::pos())) {
-            closeMenu();
+            // Курсор ушёл: закрываем не сразу, а после грейса — отвёл
+            // мышь на секунду и вернулся — меню на месте.
+            if (!m_PointerAwayArmed) {
+                m_PointerAwayArmed = true;
+                m_PointerAwayTimer.start();
+            }
+            if (m_PointerAwayTimer.elapsed() >= PointerAwayCloseMs) {
+                closeMenu();
+            }
+            else {
+                schedulePointerOutsideCheck();
+            }
         }
         else {
+            m_PointerAwayArmed = false;
             schedulePointerOutsideCheck();
         }
     });
@@ -235,6 +257,11 @@ void OverlayMenuPanel::buildMenuLevels()
     top.items.push_back({tr("Микрофон: устройство"), QString(),
                          MenuItemType::SubMenu,
                          MenuAction::MenuActionMax, 3, true, false, true});
+    top.items.push_back({tr("Герцовка"),
+                         m_FpsSel > 0 ? QString::number(m_FpsSel) + tr(" к/с")
+                                      : tr("Авто"),
+                         MenuItemType::SubMenu,
+                         MenuAction::MenuActionMax, 4, true, false, false});
     top.items.push_back({ tr("Отключиться"), m_HasGamepads ? m_QuitComboGlyphs : QString(),
                           MenuItemType::Action, MenuAction::Quit, 0, true, false, false });
     m_MenuLevels.push_back(top);
@@ -311,7 +338,24 @@ void OverlayMenuPanel::buildMenuLevels()
     }
     m_MenuLevels.push_back(micdev);
 
-    // === Level 4: Remote USB devices ===
+    // === Уровень 4: герцовка потока (PrimSec) ===
+    // Поток перезапускается только при новом подключении — заголовок
+    // честно говорит об этом. 0 = «как у монитора гостя» (авто).
+    MenuLevel fps;
+    fps.title = tr("Герцовка — с нового подключения");
+    static const int kFpsPresets[] = { 0, 60, 90, 120, 144, 165, 240 };
+    for (int v : kFpsPresets) {
+        const QString base = (v == 0) ? tr("Авто — как у монитора")
+                                      : QString::number(v) + tr(" к/с");
+        const QString label = (v == m_FpsSel)
+            ? QStringLiteral("● ") + base : base;
+        fps.items.push_back({label, QString(), MenuItemType::Action,
+                             MenuAction::SetFps, 0, true, false, v == 0,
+                             QString::number(v)});
+    }
+    m_MenuLevels.push_back(std::move(fps));
+
+    // === Level 5: Remote USB devices ===
     if (m_RemoteUsbAvailable) {
         MenuLevel usb;
         usb.title = tr("USB Devices");
@@ -703,6 +747,22 @@ void OverlayMenuPanel::dispatchActionItem(const MenuItem& item)
     // USB callbacks can synchronously rebuild the device list. Own the payload
     // before calling out so a refresh cannot invalidate the selected identity.
     const QString payload = item.payload;
+    if (item.action == MenuAction::SetFps) {
+        // PrimSec: выбор герцовки — в ini (его читает обёртка при старте
+        // потока). Меню не закрываем: маркер переезжает на выбранное.
+        beginInteraction();
+        bool okNum = false;
+        const int v = payload.toInt(&okNum);
+        if (okNum && v >= 0 && v <= 480) {
+            m_FpsSel = v;
+            QSettings settings;
+            if (v > 0) settings.setValue(QStringLiteral("primsecfps"), v);
+            else settings.remove(QStringLiteral("primsecfps"));
+            buildMenuLevels();
+            forceRepaint();
+        }
+        return;
+    }
     if (item.action == MenuAction::SetMicDevice) {
         // PrimSec: выбор устройства не закрывает меню - маркер
         // обновит session после сохранения и рестарта захвата.
@@ -811,6 +871,7 @@ void OverlayMenuPanel::showInternal()
 
     m_Visible = true;
     m_ShowTimer.start();
+    m_PointerAwayArmed = false;   // свежий показ — грейс ухода с нуля
 
     // Calculate target geometry
     repositionWindow();
@@ -1155,7 +1216,8 @@ void OverlayMenuPanel::paintEvent(QPaintEvent*)
             case 1: return QStringLiteral("menu-position");
             case 2: return QStringLiteral("menu-bitrate");
             case 3: return QStringLiteral("menu-microphone");
-            case 4: return QStringLiteral("cat-peripherals");
+            case 4: return QStringLiteral("cat-display");
+            case 5: return QStringLiteral("cat-peripherals");
             }
         }
         switch (item.action) {

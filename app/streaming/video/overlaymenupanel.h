@@ -59,6 +59,9 @@ public:
         ToggleMicrophone,
         // PrimSec: выбор устройства микрофона (id в MenuItem::payload)
         SetMicDevice,
+        // PrimSec: выбор герцовки потока (значение в MenuItem::payload,
+        // 0 = «как у монитора»; применяется со следующего подключения)
+        SetFps,
         // PrimSec: «иммерсивный» захват системных клавиш (комбо K)
         ToggleImmersive,
         // Gamepad mouse emulation
@@ -312,6 +315,8 @@ private:
     bool m_ImmersiveOn = false;
     bool m_StatsOn = false;
     QString m_MicDevSel;
+    // PrimSec: выбранная герцовка потока (0 = «как у монитора»)
+    int m_FpsSel = 0;
     CloseCallback  m_CloseCallback;
     RemoteUsbDeviceCallback m_RemoteUsbDeviceCallback;
     RemoteUsbReleaseCallback m_RemoteUsbReleaseCallback;
@@ -350,6 +355,9 @@ private:
     QElapsedTimer m_ShowTimer;
     QTimer m_LeaveTimer;
     bool m_CloseWhenPointerOutside;
+    // PrimSec: отложенное закрытие после ухода курсора (грейс 2.5 с)
+    QElapsedTimer m_PointerAwayTimer;
+    bool m_PointerAwayArmed = false;
 
     // Animations
     QPropertyAnimation* m_OpacityAnim;

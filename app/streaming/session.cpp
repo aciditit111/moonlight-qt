@@ -89,6 +89,30 @@ static void reportDroppedFileToPrimSec(const char* path)
     sock.disconnectFromHost();
 }
 
+#ifdef Q_OS_WIN32
+// PrimSec: наш клиент работает с правами администратора, а проводник —
+// без них. UIPI молча режет перетаскивание файлов в elevated-окно
+// (у курсора «запрещено»), поэтому три сообщения D&D открываем явно и
+// включаем приём файлов. Идемпотентно и дёшево: зовётся при создании
+// окна и повторно на SHOWN/RESTORED — SDL мог пересоздать HWND при
+// смене видеорежима, а фильтры UIPI живут на конкретном окне.
+static void unblockElevatedDrop(SDL_Window* window)
+{
+    if (window == nullptr) {
+        return;
+    }
+    SDL_SysWMinfo wmInfo;
+    SDL_VERSION(&wmInfo.version);
+    if (SDL_GetWindowWMInfo(window, &wmInfo)) {
+        HWND dropHwnd = wmInfo.info.win.window;
+        ChangeWindowMessageFilterEx(dropHwnd, WM_DROPFILES, MSGFLT_ALLOW, nullptr);
+        ChangeWindowMessageFilterEx(dropHwnd, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
+        ChangeWindowMessageFilterEx(dropHwnd, 0x0049 /* WM_COPYGLOBALDATA */, MSGFLT_ALLOW, nullptr);
+        DragAcceptFiles(dropHwnd, TRUE);
+    }
+}
+#endif
+
 #include <openssl/rand.h>
 
 #include <QtEndian>
@@ -4731,22 +4755,7 @@ void Session::exec()
     }
 
 #ifdef Q_OS_WIN32
-    {
-        // PrimSec запускает клиент с правами администратора, а проводник
-        // живёт без них: UIPI молча режет перетаскивание файлов в наше
-        // окно — у курсора «запрещено», событие не приходит. Открываем
-        // сообщения D&D явно (без WM_COPYGLOBALDATA проводник не отдаёт
-        // сами пути) и включаем приём файлов на окне.
-        SDL_SysWMinfo wmInfo;
-        SDL_VERSION(&wmInfo.version);
-        if (SDL_GetWindowWMInfo(m_Window, &wmInfo)) {
-            HWND dropHwnd = wmInfo.info.win.window;
-            ChangeWindowMessageFilterEx(dropHwnd, WM_DROPFILES, MSGFLT_ALLOW, nullptr);
-            ChangeWindowMessageFilterEx(dropHwnd, WM_COPYDATA, MSGFLT_ALLOW, nullptr);
-            ChangeWindowMessageFilterEx(dropHwnd, 0x0049 /* WM_COPYGLOBALDATA */, MSGFLT_ALLOW, nullptr);
-            DragAcceptFiles(dropHwnd, TRUE);
-        }
-    }
+    unblockElevatedDrop(m_Window);
 #endif
 
     m_InputHandler->setWindow(m_Window);
@@ -5243,10 +5252,17 @@ void Session::exec()
             case SDL_WINDOWEVENT_LEAVE:
                 m_InputHandler->notifyMouseLeave();
                 break;
-            case SDL_WINDOWEVENT_HIDDEN:
-            case SDL_WINDOWEVENT_MINIMIZED:
             case SDL_WINDOWEVENT_RESTORED:
             case SDL_WINDOWEVENT_SHOWN:
+#ifdef Q_OS_WIN32
+                // Страховка перетаскивания: фильтры UIPI живут на
+                // конкретном HWND, а SDL мог пересоздать окно при смене
+                // видеорежима — переоткрываем сообщения D&D.
+                unblockElevatedDrop(m_Window);
+#endif
+                // fall through
+            case SDL_WINDOWEVENT_HIDDEN:
+            case SDL_WINDOWEVENT_MINIMIZED:
             case SDL_WINDOWEVENT_MOVED:
             case SDL_WINDOWEVENT_SIZE_CHANGED:
                 // Cocoa 在全屏切换结束之后才发这个事件，拿它当「窗口已落定」的信号

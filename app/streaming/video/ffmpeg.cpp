@@ -894,16 +894,18 @@ void FFmpegVideoDecoder::stringifyVideoStats(VIDEO_STATS &stats, char *output, i
             ((stats.decodedFrames != 0)
                  ? (stats.totalDecodeTimeUs / 1000.0) / stats.decodedFrames
                  : 0.0);
+        // Подключаются с чего угодно — слова без привязки к устройству:
+        // «у тебя» = эта сторона, «у хоста» = компьютер, который стримит.
         if (stats.framesWithHostProcessingLatency > 0) {
             ret = snprintf(&output[offset], length - offset,
-                           "Обработка: ноут **%.1f мс** · комп **%.1f мс**",
+                           "Обработка: у тебя **%.1f мс** · у хоста **%.1f мс**",
                            clientMs,
                            (float)stats.totalHostProcessingLatency / 10 /
                                stats.framesWithHostProcessingLatency);
         }
         else {
             ret = snprintf(&output[offset], length - offset,
-                           "Обработка: ноут **%.1f мс**", clientMs);
+                           "Обработка: у тебя **%.1f мс**", clientMs);
         }
         if (ret < 0 || ret >= length - offset) return;
         offset += ret;

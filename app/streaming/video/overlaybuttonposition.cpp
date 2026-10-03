@@ -48,7 +48,11 @@ QPoint OverlayButtonPlacement::defaultPosition(const QRect& parentGeometry,
                                                const QSize& buttonSize,
                                                int margin)
 {
-    return resolve(QPointF(1.0, 0.0), parentGeometry, buttonSize, margin);
+    // PrimSec: кнопка по умолчанию СЛЕВА сверху — единый вид у всех
+    // (правый верх конфликтовал с привычным расположением и у новых
+    // установок кнопка оказывалась «не там, где у всех»). Перетащить
+    // можно по-прежнему куда угодно — позиция запоминается.
+    return resolve(QPointF(0.0, 0.0), parentGeometry, buttonSize, margin);
 }
 
 QPoint OverlayButtonPlacement::clamp(const QPoint& position,
