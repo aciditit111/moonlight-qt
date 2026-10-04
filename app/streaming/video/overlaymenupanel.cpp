@@ -343,7 +343,7 @@ void OverlayMenuPanel::buildMenuLevels()
     // честно говорит об этом. 0 = «как у монитора гостя» (авто).
     MenuLevel fps;
     fps.title = tr("Герцовка — с нового подключения");
-    static const int kFpsPresets[] = { 0, 60, 90, 120, 144, 165, 240 };
+    static const int kFpsPresets[] = { 0, 30, 60, 90, 120, 144, 165, 240 };
     for (int v : kFpsPresets) {
         const QString base = (v == 0) ? tr("Авто — как у монитора")
                                       : QString::number(v) + tr(" к/с");
