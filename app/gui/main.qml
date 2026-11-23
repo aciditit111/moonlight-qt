@@ -418,7 +418,10 @@ ApplicationWindow {
 
         // 各个 segue 页面用 shown 而不是直接写 visible：直接 visible=false 的话
         // 工具栏会「啪」地消失，而 visible 变假之后就不再渲染，opacity 动画也没机会跑。
-        property bool shown: true
+        // PrimSec: в режиме командной строки (поток/выход/привязка) панели нет
+        // с первого кадра. Раньше она стартовала видимой и гасла за 220 мс —
+        // при подключении мелькали чужое название и кнопки.
+        property bool shown: typeof initialView === "undefined" || initialView.indexOf("qrc:/gui/Cli") !== 0
         opacity: shown ? 1 : 0
         visible: opacity > 0
 
@@ -510,7 +513,7 @@ ApplicationWindow {
                     Text {
                         id: wordmark
                         visible: toolBar.width > 700
-                        text: "MOONLIGHT V+ FOR PC"
+                        text: "PRIMSEC"
                         color: Theme.text
                         font.family: Theme.fontSans
                         font.pointSize: Theme.fontCardTitle
