@@ -429,7 +429,10 @@ bool SdlInputHandler::handleWindowsPenPointerMessage(unsigned int message, Uint6
     SDL_Rect src = { 0, 0, m_StreamWidth, m_StreamHeight };
     SDL_Rect dst = { 0, 0, static_cast<int>(clientRect.right - clientRect.left),
                      static_cast<int>(clientRect.bottom - clientRect.top) };
-    StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    // PrimSec: stretched rendering - the video region is the whole window.
+    if (!m_IgnoreAspectRatio) {
+        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+    }
     if (dst.w <= 0 || dst.h <= 0) {
         if (terminalMessage || currentInfoCanceled) {
             return cleanUpTerminalState();
