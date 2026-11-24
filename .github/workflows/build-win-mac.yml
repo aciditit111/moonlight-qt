@@ -58,10 +58,18 @@ jobs:
           cache: true
           set-env: ${{ runner.os != 'Windows' }}
           add-tools-to-path: ${{ runner.os != 'Windows' }}
-          tools: ${{ runner.os == 'Windows' && 'tools_qtcreator_gui' || '' }}
+          # PrimSec 2026-11-24: Qt Creator 21 tools on download.qt.io have no
+          # checksums (aqt fails). jom comes from Chocolatey below instead;
+          # build-arch.bat falls back to nmake if it is missing.
+          tools: ''
           version: ${{ matrix.qt_version }}
           modules: 'qtmultimedia qtimageformats'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@073e34d7c2ab4ae6961ed7cca690b3abd5ba5a7e'
+
+      - name: Install jom (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: choco install jom --no-progress -y; if ($LASTEXITCODE -ne 0) { Write-Host 'jom unavailable, nmake fallback'; exit 0 }
 
       - name: Install Qt ARM64 (Windows)
         if: runner.os == 'Windows'
