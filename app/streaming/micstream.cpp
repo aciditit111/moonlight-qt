@@ -61,12 +61,15 @@ public:
             return false;
 
         int err;
-        m_encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_VOIP, &err);
+        // PrimSec v12: режим AUDIO 128 кбит вместо VOIP 64 (телефонный
+        // фильтр резал голос — гость звучал «как по рации»).
+        m_encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_AUDIO, &err);
         if (err != OPUS_OK) {
             m_encoder = nullptr;
             return false;
         }
-        opus_encoder_ctl(m_encoder, OPUS_SET_BITRATE(64000));
+        opus_encoder_ctl(m_encoder, OPUS_SET_BITRATE(128000));
+        opus_encoder_ctl(m_encoder, OPUS_SET_COMPLEXITY(10));
 
         QAudioFormat fmt;
         fmt.setSampleRate(48000);
