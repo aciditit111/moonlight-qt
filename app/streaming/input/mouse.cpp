@@ -355,7 +355,10 @@ void SdlInputHandler::updatePointerRegionLock()
         SDL_GetWindowSize(m_Window, &dst.w, &dst.h);
 
         // Use the stream and window sizes to determine the video region
-        StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        // PrimSec: stretched picture fills the window - lock to the whole window.
+        if (!m_IgnoreAspectRatio) {
+            StreamUtils::scaleSourceToDestinationSurface(&src, &dst);
+        }
 
         // SDL 2.0.18 lets us lock the cursor to a specific region
         SDL_SetWindowMouseRect(m_Window, &dst);
