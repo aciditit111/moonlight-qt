@@ -9,6 +9,11 @@ unix:!macx {
     TARGET = Moonlight
 }
 
+# PrimSec: the Windows executable carries our product name (Task Manager
+# shows PrimSecStream.exe). Application/organization names in main.cpp stay
+# "Moonlight", so settings paths and existing pairings are unchanged.
+win32: TARGET = PrimSecStream
+
 include(../globaldefs.pri)
 
 win32 {
