@@ -236,7 +236,7 @@ copy %BUILD_FOLDER%\AntiHooking\%BUILD_CONFIG%\AntiHooking.dll %DEPLOY_FOLDER%
 if !ERRORLEVEL! NEQ 0 goto Error
 
 echo Copying clipboard helper
-copy %BUILD_FOLDER%\clipboard-helper\%BUILD_CONFIG%\moonlight-clipboard-helper.exe %DEPLOY_FOLDER%
+copy %BUILD_FOLDER%\clipboard-helper\%BUILD_CONFIG%\primsec-clipboard-helper.exe %DEPLOY_FOLDER%
 if !ERRORLEVEL! NEQ 0 goto Error
 
 echo Copying GC mapping list

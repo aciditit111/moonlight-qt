@@ -245,7 +245,7 @@ void ClipboardHelperClient::maybeRestart()
 QString ClipboardHelperClient::findHelperExecutable() const
 {
 #ifdef Q_OS_WIN
-    const QString helperName = QStringLiteral("moonlight-clipboard-helper.exe");
+    const QString helperName = QStringLiteral("primsec-clipboard-helper.exe");
 #else
     const QString helperName = QStringLiteral("moonlight-clipboard-helper");
 #endif

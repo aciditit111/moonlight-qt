@@ -708,9 +708,10 @@ unix:!macx: {
 }
 win32 {
     RC_ICONS = moonlight.ico
-    QMAKE_TARGET_COMPANY = Moonlight V+ Project
-    QMAKE_TARGET_DESCRIPTION = Moonlight V+ for PC Game Streaming Client
-    QMAKE_TARGET_PRODUCT = Moonlight V+ for PC
+    # PrimSec: names shown in file properties and Task Manager.
+    QMAKE_TARGET_COMPANY = PrimSec
+    QMAKE_TARGET_DESCRIPTION = PrimSec Stream
+    QMAKE_TARGET_PRODUCT = PrimSec
 
     CONFIG -= embed_manifest_exe
     QMAKE_LFLAGS += /MANIFEST:embed /MANIFESTINPUT:$${PWD}/Moonlight.exe.manifest
